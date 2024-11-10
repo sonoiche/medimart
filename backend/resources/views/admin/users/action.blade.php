@@ -1,0 +1,2 @@
+<a href="{{ url('admin/admin-users', $id) }}/edit" class="btn btn-outline-success btn-sm">Edit</a>
+<a href="javascript:;" onclick="removeUser({{ $id }})" class="btn btn-outline-danger btn-sm">Delete</a>

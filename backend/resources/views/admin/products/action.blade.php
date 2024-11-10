@@ -1,0 +1,1 @@
+<a href="javascript:;" onclick="removeProduct({{ $id }})" class="btn btn-outline-danger btn-sm">Delete</a>

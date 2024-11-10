@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jQuery Lab Activity</title>
+    <style>
+        .div_content {
+            width: 80%;
+        }
+        .form-content {
+            display: flex;
+            justify-content: center;
+        }
+        .jquery-form {
+            margin: 10px auto;
+        }
+        .table tr th,
+        .table tr td {
+            border: 1px solid #333;
+            padding: 3px 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="div_content">
+        <div class="form-content">
+            <form id="jquery-form">
+                <input type="text" id="student_number" /> &nbsp;
+                <input type="text" id="student_name" /> &nbsp;
+                <select id="course">
+                    <option value="">Select Course</option>
+                    <option value="BSIT">BSIT</option>
+                    <option value="BSCS">BSCS</option>
+                </select>
+                <input type="text" id="subject" /> &nbsp;
+                <input type="number" id="grade" /> &nbsp;
+                <button id="jquery-btn">Submit</button>
+            </form>
+        </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Student Number</th>
+                    <th>Student Name</th>
+                    <th>Course</th>
+                    <th>Subject</th>
+                    <th>Grade</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr>
+                    <td>24-1234-11</td>
+                    <td>Juan Dela Cruz</td>
+                    <td>BSIT</td>
+                    <td>EDP</td>
+                    <td>85</td>
+                </tr>
+                <tr>
+                    <td>24-1234-12</td>
+                    <td>Crisostomo Ibarra</td>
+                    <td>BSIT</td>
+                    <td>OOP</td>
+                    <td>80</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // insert your jquery code here
+        });
+    </script>
+</body>
+</html>

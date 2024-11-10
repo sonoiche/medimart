@@ -1,0 +1,2 @@
+<a href="{{ url('client/products', $id) }}/edit" class="btn btn-outline-success btn-sm">Edit</a>
+<a href="javascript:;" onclick="removeProduct({{ $id }})" class="btn btn-outline-danger btn-sm">Delete</a>
