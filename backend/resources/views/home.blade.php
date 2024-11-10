@@ -1,6 +1,6 @@
 @extends('layouts.app', ['page_title' => 'Dashboard'])
 @section('content')
-<div class="row">
+{{-- <div class="row">
     <div class="col-sm-6 col-xl-3">
         <div class="card">
             <div class="card-body">
@@ -329,6 +329,11 @@
                 </tbody>
             </table>
         </div>
+    </div>
+</div> --}}
+<div class="row">
+    <div class="col-7 mx-auto">
+        <h4>No content yet</h4>
     </div>
 </div>
 @endsection
