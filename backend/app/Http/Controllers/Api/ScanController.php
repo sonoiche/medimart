@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use GuzzleHttp\Client;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\Client\ScanObject;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -20,9 +21,19 @@ class ScanController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $searchTerm = 'Mimosa';
+        $result = null;
+
+        foreach (config('medimart.plants') as $plant) {
+            if (isset($plant['plant_id']) && stripos($plant['plant_id'], $searchTerm) !== false) {
+                $result = $plant;
+                break; // Stop searching once we find the plant
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -44,39 +55,51 @@ class ScanController extends Controller
         
         if($request->has('photo')) {
             $imageData = $request->input('photo');
-        
-            $filename  = uniqid() . '.jpg';
-            $file      = base64_decode($imageData);
 
-            Storage::disk('public')->put(
-                "medimart/uploads/archives/{$filename}",
-                $file
-            );
-
-            $imageStoragePath = storage_path("app/public/medimart/uploads/archives");
-            // Check if the directory exists, if not, create it
-            if (!file_exists($imageStoragePath)) {
-                mkdir($imageStoragePath, 0755, true);
-            }
-
-
-            $image = $manager->read(Storage::disk('public')->get("medimart/uploads/archives/{$filename}"));
-            $image->scale(width: 500)->toJpeg();
-            $image->save("{$imageStoragePath}/{$filename}");
-
-            $id = $this->comparator("{$imageStoragePath}/{$filename}");
-
-            $plants = config('medimart.plants');
+            $comparePlant   = $this->plantCompare($imageData);
+            $result         = $comparePlant['result']['classification']['suggestions'][0];
+            $plant_name     = explode(' ', $result['name']);
             
-            if($plants[$id[0]]['scientific'] != '') {
+            $plants = null;
+
+            foreach (config('medimart.plants') as $plant) {
+                if (isset($plant['plant_id']) && stripos($plant['plant_id'], $plant_name[0]) !== false) {
+                    $plants = $plant;
+                    break;
+                }
+            }
+        
+            // $filename  = uniqid() . '.jpg';
+            // $file      = base64_decode($imageData);
+
+            // Storage::disk('public')->put(
+            //     "medimart/uploads/archives/{$filename}",
+            //     $file
+            // );
+
+            // $imageStoragePath = storage_path("app/public/medimart/uploads/archives");
+            // // Check if the directory exists, if not, create it
+            // if (!file_exists($imageStoragePath)) {
+            //     mkdir($imageStoragePath, 0755, true);
+            // }
+
+            // $image = $manager->read(Storage::disk('public')->get("medimart/uploads/archives/{$filename}"));
+            // $image->scale(width: 500)->toJpeg();
+            // $image->save("{$imageStoragePath}/{$filename}");
+
+            // $id = $this->comparator("{$imageStoragePath}/{$filename}");
+
+            // $plants = config('medimart.plants');
+            
+            if($plants['scientific'] != '') {
                 return response()->json([
-                    'name'          => $plants[$id[0]]['name'],
-                    'scientific'    => $plants[$id[0]]['scientific'],
-                    'uses'          => $plants[$id[0]]['uses'],
-                    'heals'         => $plants[$id[0]]['heals'],
-                    'preperation'   => $plants[$id[0]]['preperation'],
-                    'id'            => $plants[$id[0]]['id'],
-                    'photo'         => $plants[$id[0]]['photo'],
+                    'name'          => $plants['name'],
+                    'scientific'    => $plants['scientific'],
+                    'uses'          => $plants['uses'],
+                    'heals'         => $plants['heals'],
+                    'preperation'   => $plants['preperation'],
+                    'id'            => $plants['id'],
+                    'photo'         => $plants['photo'],
                     'message'       => 'Found matches'
                 ], 200);
             }
@@ -104,72 +127,6 @@ class ScanController extends Controller
         return response()->json($data);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
-
-    private function imageRekognition($filename)
-    {
-        $client = new RekognitionClient([
-            'region'    => config('filesystems.disks.s3.region'),
-            'version'   => 'latest',
-            'credentials' => [
-                'key'       => config('app.aws_rekognition_key'),
-                'secret'    => config('app.aws_rekognition_secret'),
-            ],
-        ]);
-
-        $sourceBytes    = Storage::disk('public')->get("medimart/uploads/archives/{$filename}");
-        $targetImages   = Storage::disk('s3')->files('medimart/uploads/plants/');
-        $faceMatches    = [];
-        foreach ($targetImages as $targetImage) {
-            $targetBytes = Storage::disk('s3')->get($targetImage);
-            $result = $client->compareFaces([
-                'SourceImage' => [
-                    'Bytes' => $sourceBytes
-                ],
-                'TargetImage' => [
-                    'Bytes' => $targetBytes
-                ]
-            ]);
-
-            $plant    = explode('.', basename($targetImage));
-            if(count($result['FaceMatches'])) {
-                $faceMatches[]  = [
-                    'similarity'    => $result['FaceMatches'][0]['Similarity'],
-                    'plant_id'      => $plant[0]
-                ];
-            }
-        }
-
-        usort($faceMatches, function ($a, $b) {
-            return $b['similarity'] <=> $a['similarity'];
-        });
-
-        $topFaceMatch = array_slice($faceMatches, 0, 1);
-        return $topFaceMatch[0];
-    }
-
     private function comparator($filename)
     {
         $directory      = 'plants';
@@ -194,44 +151,34 @@ class ScanController extends Controller
         return (count($plant) > 0) ? $plant[0] : [1];
     }
 
-    private function getImageEmbedding($base64Image)
+    private function plantCompare($image)
     {
-        $response = OpenAI::embeddings()->create([
-            'model' => 'text-embedding-ada-002',
-            'input' => $base64Image,
-        ]);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+        CURLOPT_URL => 'https://plant.id/api/v3/identification',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS =>'{
+            "images": [
+                "data:image/jpg;base64,'.$image.'"
+            ],
+            "similar_images": true
+        }',
+        CURLOPT_HTTPHEADER => array(
+            'Api-Key: jtcjKUICxdQZJWwJPsXR9R3UvrsPC3GEIiIawxKClfjarkBdqh',
+            'Content-Type: application/json'
+        ),
+        ));
 
-        return $response['data'][0]['embedding'];
-    }
+        $response = curl_exec($curl);
 
-    private function findMostSimilarImage($uploadedEmbedding, $existingEmbeddings)
-    {
-        $maxSimilarity = -1;
-        $mostSimilarIndex = -1;
+        curl_close($curl);
+        return json_decode($response, true);
 
-        foreach ($existingEmbeddings as $index => $embedding) {
-            $similarity = $this->cosineSimilarity($uploadedEmbedding, $embedding);
-            if ($similarity > $maxSimilarity) {
-                $maxSimilarity = $similarity;
-                $mostSimilarIndex = $index;
-            }
-        }
-
-        return $mostSimilarIndex;
-    }
-
-    private function cosineSimilarity($vecA, $vecB)
-    {
-        $dotProduct = 0;
-        $normA = 0;
-        $normB = 0;
-
-        for ($i = 0; $i < count($vecA); $i++) {
-            $dotProduct += $vecA[$i] * $vecB[$i];
-            $normA += $vecA[$i] ** 2;
-            $normB += $vecB[$i] ** 2;
-        }
-
-        return $dotProduct / (sqrt($normA) * sqrt($normB));
     }
 }

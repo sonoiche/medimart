@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use App\Models\Client\Product;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\ProductRequest;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
@@ -19,6 +20,7 @@ class ProductController extends Controller
             ->when($user_id, function ($query, $user_id) {
                 $query->where('user_id', $user_id);
             })->latest()->get();
+
         return response()->json($data);
     }
 
@@ -33,41 +35,59 @@ class ProductController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(ProductRequest $request)
     {
         $product = new Product();
         $product->user_id       = $request['user_id'];
         $product->title         = $request['title'];
         $product->description   = $request['description'];
         $product->price         = $request['price'];
-        $product->status        = $request['status'];
+        $product->status        = 'In Stock';
 
         if($request->has('photo')) {
-            $imageData = $request->input('photo');
+            $imageData = $request->file('photo');
+            $filename   = uniqid() . '.jpg';
 
-            $filename = uniqid() . '.jpg';
-            $file   = base64_decode($imageData);
-
-            Storage::disk('s3')->put(
-                "medimart/uploads/products/{$filename}",
-                $file,
+            Storage::disk('s3')->putFileAs(
+                "medimart/uploads/products",
+                $imageData,
+                $filename,
                 'public'
             );
             
             $product->photo = Storage::disk('s3')->url("medimart/uploads/products/{$filename}");
         }
 
+        $product->save();
+
         $data['message'] = 'Product item has been updated.';
-        return response()->json($data);
+        $data['success'] = true;
+        return response()->json($data, 200);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $id, Request $request)
     {
-        $data['data'] = Product::with('seller')->find($id);
-        return response()->json($data);
+        $what = $request['what'];
+        switch ($what) {
+            case 'delete':
+                
+                $product = Product::find($id);
+                $product->delete();
+
+                return response()->json(200);
+
+                break;
+            
+            default:
+                
+                $data['data'] = Product::with('seller')->find($id);
+                return response()->json($data);
+
+                break;
+        }
     }
 
     /**
