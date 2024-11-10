@@ -7,7 +7,7 @@ use App\Http\Controllers\Client\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->to('login');
 });
 
 Auth::routes();
